@@ -22,16 +22,18 @@ import javax.swing.JTextArea;
  */
 public class RecvFrameThread implements Runnable {
 	private ReadableByteChannel readChannel;
-	private JTextArea textArea;
+	private MainFrame mainFrame;
 	
+
 	public RecvFrameThread(ReadableByteChannel in) {
 		readChannel = in;
 		
 	}
-	public void setJTextArea(JTextArea textArea){
-		this.textArea = textArea;
-	}
 
+	public void setMainFrame(MainFrame mainFrame) {
+		this.mainFrame = mainFrame;
+	}
+	
 	@Override
 	public void run() {
 		ByteBuffer buffer;
@@ -53,7 +55,8 @@ public class RecvFrameThread implements Runnable {
 						//帧数据异或校验出错，异常处理，需要补充处理方式
 					}
 					RecvBody recvBody = DataFrame.decodeFrame(buffer);
-					textArea.append(recvBody.toString());
+					mainFrame.appendTextAreaShow(recvBody.toString());
+					Procedure.getProcedure().recive(recvBody);
 				}
 				
 				TimeUnit.SECONDS.sleep(1);

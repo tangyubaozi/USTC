@@ -192,8 +192,15 @@ public final class Tools {
 	}
 	
 	public static void main(String[] args){
-
-		System.out.println("ok");
+		Byte[] bb = new Byte[]{0x23,(byte) 0xff,(byte) 0xac,0x00};
+		String ssString = String.format("%02x%02x%02x%02x", bb[0],bb[1],bb[2],bb[3]);
+		System.out.println(ssString);
+		StringBuilder builder = new StringBuilder();
+		for (byte b : bb) {
+			builder.append(Integer.toHexString(b));
+		}
+		
+		System.out.println(builder);
 	}
 
 }

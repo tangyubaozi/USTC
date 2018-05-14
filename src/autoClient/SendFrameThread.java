@@ -18,8 +18,8 @@ public class SendFrameThread implements Runnable, OutputFrameQueue {
 	
 	public SendFrameThread(WritableByteChannel out) {
 		writeChannel = out;	
-		File file = new File("C:\\Users\\Ttyy\\workspace\\QKDAutoClient\\datas\\2111 - 副本 (3).dat");
-		OutputQueue.add(new DataFrame(file, Tools.getMD5(file)));
+/*		File file = new File("C:\\Users\\Ttyy\\workspace\\QKDAutoClient\\datas\\2111 - 副本 (3).dat");
+		OutputQueue.add(new DataFrame(file, Tools.getMD5(file)));*/
 	}
 	
 

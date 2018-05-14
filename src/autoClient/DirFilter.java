@@ -1,22 +1,24 @@
 package autoClient;
 
 
-import java.io.DataInput;
 import java.io.DataInputStream;
-import java.io.DataOutput;
 import java.io.File;
 import java.io.FileFilter;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.MessageDigest;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
+
+import record.Recorder;
 
 /**
  * 文件筛选的具体实现
@@ -33,90 +35,44 @@ public class DirFilter implements FileFilter{
 	private Path path;
 	private List<FileConfig> fileconfigs;
 	private Instant lastTime;
-	private boolean Update = false;//是否有更新的开关
 	private String fileSuffix = ".dat";
-	
+	private Recorder<FileConfig> recorder;
+	SimpleDateFormat bartDateFormat =
+                new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ ");
 	
 	public DirFilter() {
 		path = Paths.get(MyProperties.getMyProperties().getSettings().getProperty(MyProperties.PATH_DIR));
 		path = path.resolve("filesrecording.prop");
-		fileconfigs = new ArrayList<>();
-		lastTime = Instant.EPOCH;
+		recorder = new Recorder<>(path, FileConfig.class, Recorder.HIDDEN);
+		fileconfigs = recorder.getList();
 		try {
-			if(!Files.exists(path)){	//如果没有文件则创建
-				Files.createFile(path);
-				//调用DOS设置文件隐藏属性
-				Runtime.getRuntime().exec( "attrib +H \"" + path + "\"");
-			}else{
-				readRecording();
-			}
-				
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-	}
-	
-	/**
-	 * 判断记录是否有更新
-	 * @return
-	 */
-	public boolean hasUpdate(){
-		return Update;
-	}
-	
-	/**
-	 * 从文件读取记录
-	 */
-	private void readRecording(){
-		try (DataInputStream in = new DataInputStream(new FileInputStream(path.toFile()));){
-			FileConfig fc;
-			lastTime = Instant.ofEpochSecond(in.readLong());	//读取文件开头的最新访问时间
-			while((fc = FileConfig.getFromDataInput(in))!=null){
-				fileconfigs.add(fc);
-				if(lastTime.compareTo(fc.time)<0){
-					lastTime = fc.time;
-				}
-			}	
-		} catch (FileNotFoundException e) {
-			e.printStackTrace();
-		} catch (IOException e) {
-//			fileconfigs = null;
-			return;
-		} 
-	}
-	
-	/**
-	 * 向文件写入记录
-	 * @return	返回写入的记录的条数
-	 */
-	public int writeRecording(){	
-		try(RandomAccessFile out = new RandomAccessFile(path.toFile(),"rw");){	//写入隐藏文件内容需要用随机写入的方式打开
-			out.seek(0);
-			out.writeLong(lastTime.getEpochSecond());	//在文件开头写入最新访问时间
-			for (FileConfig fileConfig : fileconfigs) {
-				fileConfig.writeToDataOutput(out);
-			}
-		} catch (FileNotFoundException e) {
-			
-			e.printStackTrace();
-		} catch (IOException e) {
+			lastTime = (recorder.getStartOfRecord() == null) ? Instant.EPOCH 
+					: Instant.ofEpochMilli(bartDateFormat.parse(recorder.getStartOfRecord()).getTime());
+		} catch (ParseException e) {
 			
 			e.printStackTrace();
 		}
-		return fileconfigs.size();
-	
 	}
+	
+
 	/**
 	 * 更新记录，如果记录有改变，则更新并写入文件，返回更新后的记录条数；没有改变则返回0；
 	 * @return	返回写入的记录的条数
 	 */
 	public int updateRecording(){
-		if(Update){
-			Update = false;
-			return writeRecording();
-		}else{
-			return 0;
-		}
+		Date date = new Date(lastTime.toEpochMilli());
+		        
+		recorder.setStartOfRecord(bartDateFormat.format(date));
+		return recorder.updateRecording();		
+	}
+	
+	public void addFileConfig(File name, byte[] MD5){
+		FileConfig fc = new FileConfig(name, MD5);
+		recorder.add(fc);
+		Instant time = Tools.getLastAccessTime(name);
+		lastTime = time.compareTo(lastTime)>0 ? time:lastTime;
+		
+		
 	}
 	
 	/**
@@ -124,7 +80,7 @@ public class DirFilter implements FileFilter{
 	 * @param name
 	 * @return
 	 */
-	public boolean haveSameFileName(String name){
+	private boolean haveSameFileName(String name){
 		for (FileConfig fileConfig : fileconfigs) {
 			if(fileConfig.name.equals(name)){
 				return true;
@@ -138,7 +94,7 @@ public class DirFilter implements FileFilter{
 	 * @param name
 	 * @return	如果没有则输出null
 	 */
-	public FileConfig getSameNameFileConfig(String name){
+	private FileConfig getSameNameFileConfig(String name){
 		for (FileConfig fileConfig : fileconfigs) {
 			if(fileConfig.name.equals(name)){
 				return fileConfig;
@@ -152,7 +108,7 @@ public class DirFilter implements FileFilter{
 	 * @param b
 	 * @return
 	 */
-	public boolean haveSameMD5(byte[] b){
+	private boolean haveSameMD5(byte[] b){
 		for (FileConfig fileConfig : fileconfigs) {
 			if(MessageDigest.isEqual(fileConfig.MD5, b)){
 				return true;
@@ -166,7 +122,7 @@ public class DirFilter implements FileFilter{
 	 * @param b
 	 * @return	如果没有则输出null
 	 */
-	public FileConfig getSameMD5FileConfig(byte[] b){
+	private FileConfig getSameMD5FileConfig(byte[] b){
 		for (FileConfig fileConfig : fileconfigs) {
 			if(MessageDigest.isEqual(fileConfig.MD5, b)){
 				return fileConfig;
@@ -174,14 +130,7 @@ public class DirFilter implements FileFilter{
 		}
 		return null;
 	}
-	
-	public void addFileConfig(File name, byte[] MD5){
-		FileConfig fc = new FileConfig(name, MD5);
-		fileconfigs.add(fc);
-		Instant time = Tools.getLastAccessTime(name);
-		lastTime = time.compareTo(lastTime)>0 ? time:lastTime;
-		Update = true;
-	}
+
 
 	/**
 	 * 每次扫描的时候都首先用文件的访问时间作为判断依据，进行初始判断，接着匹配文件名，如果没有记录，则发送，
@@ -232,83 +181,5 @@ public class DirFilter implements FileFilter{
 		
 	}
 	
-	
-}
-
-class FileConfig implements Recordable, Comparable<FileConfig>{
-	
-	public String name;
-	public byte[] MD5;
-	public Instant time;
-	/**	这里用的是char的长度，换算成byte需要乘以2 */
-	public static final int NAMECHARSIZE = 128;
-	
-	public FileConfig(){
-		this.MD5 = new byte[16];
-	}
-		
-	public FileConfig(String name, byte[] MD5, long time) {
-		this.name = name;
-		this.MD5 = MD5;
-		this.time = Instant.ofEpochSecond(time);
-	}
-	
-	
-	public FileConfig(File file, byte[] MD5){
-		this.name = file.getName();
-		this.MD5 = MD5;
-		this.time = Tools.getLastAccessTime(file);
-	}
-	
-	
-	
-	public static FileConfig getFromDataInput(DataInput in){
-		FileConfig fc = new FileConfig();
-		if(fc.readFromDataInput(in));
-		else fc = null;
-		return fc;
-	}
-	
-	@Override
-	public boolean readFromDataInput(DataInput in){
-		try {
-			name = readName(in);
-			in.readFully(MD5);
-			time = Instant.ofEpochSecond(in.readLong());
-			return true;
-		} catch (IOException e) {
-			//e.printStackTrace();
-			return false;
-		}
-	}
-	@Override
-	public void writeToDataOutput(DataOutput out){
-		try {
-			writeName(out);
-			out.write(MD5);
-			out.writeLong(time.getEpochSecond());
-		} catch (IOException e) {
-			
-			e.printStackTrace();
-		}
-	}
-	
-	@Override
-	public FileConfig newInstance(){
-		return new FileConfig();
-	}
-	
-	
-	public String readName(DataInput in) throws IOException{
-		return Tools.readFixedString(NAMECHARSIZE, in);
-	}
-	public void writeName(DataOutput out) throws IOException{
-		Tools.writeFixedString(name, NAMECHARSIZE, out);
-		
-	}
-	@Override
-	public int compareTo(FileConfig other){
-		return this.time.compareTo(other.time);
-	}
 	
 }

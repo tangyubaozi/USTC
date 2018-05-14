@@ -6,6 +6,9 @@ import javax.swing.JFileChooser;
 import javax.swing.JTextField;
 import javax.swing.KeyStroke;
 import javax.swing.SwingConstants;
+
+import record.Recorder;
+
 import javax.swing.JLabel;
 import javax.swing.AbstractAction;
 import javax.swing.Action;

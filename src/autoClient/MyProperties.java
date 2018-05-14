@@ -1,10 +1,14 @@
 package autoClient;
 
+import java.awt.FileDialog;
 import java.awt.Font;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -20,6 +24,7 @@ import javax.swing.JFileChooser;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
+import javax.swing.WindowConstants;
 /**
  * 软件配置信息的实现类
  * 在当前目录下生成配置文件，记录配置信息
@@ -38,7 +43,7 @@ public class MyProperties {
 	public static final String SERIAL_PORT = "SerialPort";
 
 	private MyProperties() {		
-	    propertiesFile = Paths.get(".").resolve("program.properties");
+	    propertiesFile = Paths.get(".").resolve("program.txt");
 		settings = new Properties();
 		try(InputStream in = Files.newInputStream(propertiesFile)){
 			settings.load(in);
@@ -49,11 +54,13 @@ public class MyProperties {
 		}
 	}
 	private void defaultSetting(){
-		settings.put(PATH_DIR, "C:\\Users\\Ttyy\\workspace\\QKDAutoClient\\src");
+//		settings.put(PATH_DIR, "C:\\Users\\Ttyy\\workspace\\QKDAutoClient\\datas");
+		settings.put(PATH_DIR, "");
 		settings.put(IP, "192.168.0.178:8899");
 		settings.put(COMM_MODE, TCP_IP);
 //		setIP();
-//		setFileDir();
+		setFileDir();
+		
 		try (OutputStream outputStream = Files.newOutputStream(propertiesFile)){
 			settings.store(outputStream, "Work Config");
 			
@@ -92,18 +99,35 @@ public class MyProperties {
 	    okBtn.addActionListener(new ActionListener() {
 	    	@Override
 	    	public void actionPerformed(ActionEvent e) {
-	                // 关闭对话框
-	            	settings.put(PATH_DIR, jField.getText());
-	            	jDialog.dispose();
-	            }
-	        });
+	            // 关闭对话框
+	    		File file = new File(jField.getText());
+	    		if(file.exists()){
+	    			settings.put(PATH_DIR, jField.getText());
+	    			jDialog.dispose();
+	    		}else{
+	    			jField.setText("路径无效，请重设");
+	    		}            	
+            }
+        });
 	    okBtn.setFont(font);
 		JPanel panel = new JPanel();
 		panel.add(jField);
 		panel.add(okBtn);
 		jDialog.setContentPane(panel);
 		jDialog.setLocationRelativeTo(null);
-        //阻塞对话框
+		jDialog.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
+		jDialog.addWindowListener(new WindowAdapter() {
+			@Override
+			public void windowClosing(WindowEvent e) {
+				File file = new File(settings.getProperty(PATH_DIR));
+				if(!file.exists()){
+					jField.setText("请设置路径");
+				}else{
+					jDialog.dispose();
+				}
+			}
+		});
+		//阻塞对话框
 		jDialog.setModal(true);
 		// 显示对话框
 		jDialog.setVisible(true);
@@ -118,5 +142,6 @@ public class MyProperties {
 	public Properties getSettings(){		
 		return settings;
 	}
+	
 	
 }

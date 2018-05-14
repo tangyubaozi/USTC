@@ -16,6 +16,7 @@ import javax.swing.JButton;
 public class testframe extends JFrame {
 
 	private JPanel contentPane;
+	public JPanel panel_2;
 
 	/**
 	 * Launch the application.
@@ -57,7 +58,7 @@ public class testframe extends JFrame {
 		ÄãºÃ.setBounds(5, 5, 656, 496);
 		contentPane.add(ÄãºÃ);
 		
-		JPanel panel_2 = new JPanel();
+		panel_2 = new JPanel();
 		ÄãºÃ.addTab("New tab", null, panel_2, null);
 		panel_2.setLayout(null);
 		

@@ -42,6 +42,7 @@ public class DataFrame {
 	private int frame_length = 24;
 	private ByteBuffer byteBuffer;
 	private ByteBuffer frame_body;
+	private Parameter parameter;
 	private int Mod;
 	private File transFile;
 
@@ -59,6 +60,7 @@ public class DataFrame {
 		frame_body.flip();
 		packFrame();
 	}
+	
 	
 	/**
 	 * 以帧模式和帧体，创建数据帧；
@@ -83,23 +85,22 @@ public class DataFrame {
 	public DataFrame(int mod, Parameter p){
 		Mod = mod;
 		transFile = null;
+		parameter = p;
 		ByteBuffer bb = ByteBuffer.allocate(500);
 		switch(mod){
 		case DataFrame.PULSE_POSITION:
 			bb.putInt(p.fixSecond);
-			bb.put(p.SYNtype);
+			bb.putInt(p.SYNtype);
 			for (int i : p.channelDelay) {
 				bb.putInt(i);
 			}
-			bb.putShort(p.sendFrequrt);
-			bb.put(p.flashAddress);
+			bb.putInt(p.sendFrequrt);
 			bb.putLong(p.recvTime);
 			break;
 		case DataFrame.RAWKEY_APD:
-				
-		case DataFrame.ERR_CORRECTION:
-			bb.putInt(p.randomSeed);
 			bb.put(p.flashAddress);	
+		case DataFrame.ERR_CORRECTION:
+			bb.putInt(p.errNum);
 			break;
 		case DataFrame.KEY_RELAY:
 			break;
@@ -190,18 +191,14 @@ public class DataFrame {
 					recvBody.up_file_num = buffer.getInt();
 					break;
 				case RAWKEY_APD:
-					float[] fs = new float[16];
-					for (int i = 0; i < fs.length; i++) {
-						fs[i] = buffer.getFloat();
-					}
-					recvBody.err_key_rate = fs;
+					recvBody.err_key_rate = buffer.getFloat();
 					break;
 				case ERR_CORRECTION:
-					boolean[] bs = new boolean[16];
+					int[] bs = new int[2];
 					for (int i = 0; i < bs.length; i++) {
-						bs[i] = buffer.get() == 0 ? false:true;
+						bs[i] = buffer.getInt();
 					}
-					recvBody.err_state = bs;
+					recvBody.key_length = bs;
 					break;
 				case KEY_RELAY:
 					break;				
@@ -220,6 +217,51 @@ public class DataFrame {
 		return recvBody;
 	}
 	
+	@Override
+	public String toString(){
+		StringBuilder sBuilder = new StringBuilder();
+		switch(Mod){
+		case PULSE_POSITION:
+			sBuilder.append("时间同步 # ");
+			sBuilder.append("时间 ");
+			sBuilder.append(parameter.recvTime);
+			
+			break;
+		case RAWKEY_APD:
+			sBuilder.append("地面成码 # 序号 ");
+			sBuilder.append(parameter.errNum);
+			sBuilder.append("#地址 ");
+			String s = String.format("%02x%02x%02x%02x", 
+					parameter.flashAddress[0],parameter.flashAddress[1],
+					parameter.flashAddress[2],parameter.flashAddress[3]);
+			sBuilder.append(s);
+			break;
+		case ERR_CORRECTION:
+			sBuilder.append("地面纠错 # 序号 ");
+			if(parameter.errNum % 2 == 1){
+				sBuilder.append(parameter.errNum-1);
+				sBuilder.append(" and ");	
+			}
+			sBuilder.append(parameter.errNum);
+			break;
+		case KEY_RELAY:
+			// TODO 
+			break;
+		case TRANSFER_FILE:
+			sBuilder.append("发送文件 # 文件名 ");
+			sBuilder.append(transFile.getName());
+			break;
+		case RECV_FILE:
+			// TODO 
+			sBuilder.append("收到文件 # 文件名 ");
+			break;
+		default:
+			break;
+
+		}		
+		return sBuilder.toString();
+	}
+	
 }
 
 /**
@@ -232,8 +274,8 @@ class RecvBody{
 	public int mod;
 	public boolean success;
 	public int up_file_num;
-	public float[] err_key_rate;
-	public boolean[] err_state;
+	public float err_key_rate;
+	public int[] key_length;
 	public String file_name;
 	public long file_length;
 	public byte[] MD5;
@@ -255,18 +297,16 @@ class RecvBody{
 		case DataFrame.RAWKEY_APD:
 			s.append("地面成码指令运行：");
 			s.append(YON(success));
-			s.append("误码率：");
-			for (float f : err_key_rate) {
-				s.append(String.format("%.2f%% ", f*100));
-			}
+			s.append("误码率：");			
+			s.append(String.format("%.2f%% ", err_key_rate*100));			
 			s.append("\n");
 			break;
 		case DataFrame.ERR_CORRECTION:
 			s.append("地面纠错指令运行：");
 			s.append(YON(success));
-			s.append("纠错状态：");
-			for (int i = 0; i < 16;i++) {
-				s.append(err_state[i]);
+			s.append("最终密钥长度：");
+			for (int i = 0; i < 2;i++) {
+				s.append(key_length[i]);
 				s.append(' ');
 			}
 			s.append("\n");	

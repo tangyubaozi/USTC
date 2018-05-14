@@ -1,17 +1,12 @@
 package autoClient;
 
 import java.io.BufferedReader;
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
-import java.text.SimpleDateFormat;
-import java.util.Calendar;
-import java.util.Date;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -118,61 +113,5 @@ public class KeyRelay {
     	kk.saveXML();
 	}
     
-}
-
-class FlashAddrCell implements Recordable{
-	public Calendar time;
-	public long flashAddr;
-	public long length;
-	public boolean used;
-	public static final SimpleDateFormat bartDateFormat =
-            new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ ");  
-	
-	@Override
-	public String toString(){
-		StringBuilder s = new StringBuilder();
-		Date date = time.getTime();       
-		s.append(bartDateFormat.format(date));
-		s.append(Long.toHexString(flashAddr));
-		s.append(length);
-		s.append(used);
-		return s.toString();
-	}
-
-	@Override
-	public boolean readFromDataInput(DataInput in) {
-		try {
-			time = Calendar.getInstance();
-			time.setTimeInMillis(in.readLong());
-			flashAddr = in.readLong();
-			length = in.readLong();
-			used = in.readBoolean();
-			
-			return true;
-		} catch (IOException e) {
-			//e.printStackTrace();
-			return false;
-		}
-	}
-
-	@Override
-	public void writeToDataOutput(DataOutput out) {
-		try {
-			out.writeLong(time.getTimeInMillis());
-			out.writeLong(flashAddr);
-			out.writeLong(length);
-			out.writeBoolean(used);
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-	}
-
-	@Override
-	public FlashAddrCell newInstance() {
-		// TODO Auto-generated method stub
-		return new FlashAddrCell();
-	}
-	
 }
 
