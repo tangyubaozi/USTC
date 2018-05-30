@@ -3,6 +3,7 @@ package autoClient;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import java.io.Serializable;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
@@ -11,7 +12,7 @@ import java.util.Scanner;
 
 import record.Recordable;
 
-public class FlashAddrCell implements Recordable{
+public class FlashAddrCell implements Serializable, Recordable{
 	public Calendar time;
 	public long flashAddr;
 	public long length;
@@ -34,6 +35,7 @@ public class FlashAddrCell implements Recordable{
 		return s.toString();
 	}
 	
+	@Override
 	public boolean readString(String string){
 		String s;
 		try(Scanner scanner = new Scanner(string)) {		

@@ -12,6 +12,8 @@ import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import javax.swing.UnsupportedLookAndFeelException;
 import javax.swing.JButton;
+import java.awt.event.ActionListener;
+import java.awt.event.ActionEvent;
 
 public class testframe extends JFrame {
 
@@ -69,8 +71,17 @@ public class testframe extends JFrame {
 		
 		SubXORPanel subXORPanel = new SubXORPanel();
 		subXORPanel.setLayout(null);
-		subXORPanel.setBounds(354, 13, 193, 417);
+		subXORPanel.setBounds(221, 13, 193, 417);
 		panel_2.add(subXORPanel);
+		
+		JButton btnPackage = new JButton("package");
+		btnPackage.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				
+			}
+		});
+		btnPackage.setBounds(497, 403, 113, 27);
+		panel_2.add(btnPackage);
 		
 		JPanel panel_1 = new JPanel();
 		ÄãºÃ.addTab("New tab", null, panel_1, null);

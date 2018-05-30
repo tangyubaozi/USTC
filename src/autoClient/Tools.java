@@ -14,6 +14,8 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.security.DigestOutputStream;
 import java.security.MessageDigest;
@@ -192,14 +194,15 @@ public final class Tools {
 	}
 	
 	public static void main(String[] args){
+		
+		Path path = Paths.get("C:\\Users\\Ttyy\\Desktop\\ttt\\Œ“√« «À≠.txt");
+	    String s = path.toFile().getName();
+	    byte[] b = s.getBytes();
+	    String t = new String(b);
 		Byte[] bb = new Byte[]{0x23,(byte) 0xff,(byte) 0xac,0x00};
 		String ssString = String.format("%02x%02x%02x%02x", bb[0],bb[1],bb[2],bb[3]);
 		System.out.println(ssString);
 		StringBuilder builder = new StringBuilder();
-		for (byte b : bb) {
-			builder.append(Integer.toHexString(b));
-		}
-		
 		System.out.println(builder);
 	}
 

@@ -8,13 +8,17 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.stream.Collector;
+import java.util.stream.Collectors;
 
 import javax.swing.JOptionPane;
 
@@ -30,24 +34,25 @@ import static autoClient.DataFrame.*;
  *
  */
 public class Procedure implements Serializable{
+		
+	
+	/**
+	 * 建议每次修改后重新生成该值
+	 */
+	private static final long serialVersionUID = 5353510773240853037L;
 	
 	private static Procedure procedure;
 	private static Parameter parameter;
-	private static int thisID;
 	private int step_now;
 	private int sum_steps;
-	private boolean[]  processSign;
 	private LinkedBlockingQueue<DataFrame> procQueue;
 	private long flash;
-	private List<FlashAddrCell> addressList;
+	private ArrayList<FlashAddrCell> addressList;
 
 	
 	public static final Path PATH = Paths.get(".").resolve("Procedure.dat");
 	public static final Path PATH_ADDRESS_TABLE = Paths.get(".").resolve("this_station_address_table.txt");
-	public static final int A = 1;
-	public static final int B = 2;
-	public static final int C = 3;
-	public static final int D = 4;
+
 	
 	//静态代码块，用于该类初始化加载序列化存档
 	static{
@@ -64,6 +69,7 @@ public class Procedure implements Serializable{
 	
 	private Procedure() {
 		procQueue = new LinkedBlockingQueue<>();
+		sum_steps = 2;
 	}
 	
 	public void start(){
@@ -91,6 +97,7 @@ public class Procedure implements Serializable{
 			String flashString = JOptionPane.showInputDialog("输入本次Flash地址：");
 			flash = Long.valueOf(flashString, 16);
 		}
+		saveProcedure();
 		
 	}
 	
@@ -98,6 +105,7 @@ public class Procedure implements Serializable{
 	public void recive(RecvBody recvBody){
 		switch (recvBody.mod){
 		case PULSE_POSITION:
+			step_now = 0;
 			sum_steps = recvBody.up_file_num;
 			addTask();
 			break;
@@ -109,7 +117,8 @@ public class Procedure implements Serializable{
 				getEmptyLength().length = recvBody.key_length[1];
 			}
 			break;
-				
+		default:
+			break;
 		}
 		saveProcedure();
 	}
@@ -141,22 +150,34 @@ public class Procedure implements Serializable{
 			p = new Parameter();
 			p.errNum = sum_steps - 1;
 			procQueue.add(new DataFrame(ERR_CORRECTION,p));
-		}	
+		}
+		sum_steps = procQueue.size();
  	}
 	
 	public DataFrame nextStep(){
 		return procQueue.peek();
 	}
 	
-	public void doNextStep(Queue<DataFrame> outQueue){
-		DataFrame dataFrame = procQueue.poll();
-		outQueue.add(dataFrame);
+	public Procedure doNextStep(Queue<DataFrame> outQueue){
 		step_now ++;
+		if(step_now >= sum_steps){
+			finishProcedure();
+		}else{
+			DataFrame dataFrame = procQueue.poll();
+			outQueue.add(dataFrame);
+		}
+		return procedure;	
 	}
 	
 	public DataFrame pollNextStep(){
 		step_now ++;
-		return procQueue.poll();
+		if(step_now >= sum_steps){
+			finishProcedure();
+			return null;
+		}else{
+			return procQueue.poll();
+		}
+		
 	}
 	
 	private FlashAddrCell getEmptyLength(){
@@ -166,6 +187,30 @@ public class Procedure implements Serializable{
 			}
 		}
 		return null;
+	}
+	
+	public void finishProcedure(){
+		if(step_now >= sum_steps){
+			List<String> ss = addressList.stream()
+					.map(FlashAddrCell::toString)
+					.collect(Collectors.toList());
+			try {
+				Files.write(PATH_ADDRESS_TABLE, ss, StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		procedure = null;
+		try {
+			Files.delete(PATH);
+		} catch(NoSuchFileException e){
+			
+		} catch (IOException e) {
+			
+			e.printStackTrace();
+		}
+		
 	}
 	
 	public void saveProcedure(){

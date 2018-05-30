@@ -36,18 +36,22 @@ public class Recorder<T extends Recordable> {
 	private Class<T> T0;
 	private boolean hidden = false;//记录文件是否设为隐藏文件
 	private boolean clearText = false;//记录是以明文字符存储，否为以二进制存储
+	private boolean noHead = false;//记录是以明文字符存储，否为以二进制存储
 	
 
 	public static final int HIDDEN = 1;
 	public static final int TEXT = 2;
+	public static final int HEADLESS = 4;
 	
 	public Recorder(Path path, Class<T> kind, int ... args){
 		this.path = path;
 		this.T0 = kind;	
 		if(args.length != 0){
 			int flag = IntStream.of(args).sum();
-			setHidden((flag & 0x1) == 1 ? true: false);
-			setClearText((flag & 0x2) == 2 ? true: false);
+			setHidden((flag & 0x1) == HIDDEN ? true: false);
+			setClearText((flag & 0x2) == TEXT ? true: false);
+			setNoHead((flag & 0x4) == HEADLESS ? true: false);
+			
 		}
 		list = new ArrayList<>();
 		try {
@@ -98,18 +102,28 @@ public class Recorder<T extends Recordable> {
 	
 	private void readFromString(){
 		List<String> slist;
+		T t = null;
 		try {
 			slist = Files.readAllLines(path);
-			setStartOfRecord(slist.get(0));
-			T t = null;
-			for (int i = 1; i < slist.size(); i++) {
-				t = T0.newInstance();
-				if(t.readString(slist.get(i))){
-					list.add(t);
-				}
+			if(!noHead){
+				setStartOfRecord(slist.get(0));
 				
+				for (int i = 1; i < slist.size(); i++) {
+					t = T0.newInstance();
+					if(t.readString(slist.get(i))){
+						list.add(t);
+					}
+					
+				}
+			}else{
+				for (String string : slist) {
+					t = T0.newInstance();
+					if(t.readString(string)){
+						list.add(t);
+					}
+				}
+					
 			}
-			
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -176,13 +190,19 @@ public class Recorder<T extends Recordable> {
 	}
 	
 	private int writeToString(){
-		List<String> li = new ArrayList<>(list.size()+1);
-		if(startOfRecord == null){
-			SimpleDateFormat bartDateFormat =
-	                new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ ");
-			setStartOfRecord("Create in " + bartDateFormat.format(new Date(Calendar.getInstance().getTimeInMillis())));
+		List<String> li;
+		if(!noHead){
+			li = new ArrayList<>(list.size()+1);
+			if(startOfRecord == null){
+				SimpleDateFormat bartDateFormat =
+		                new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ ");
+				setStartOfRecord("Create in " + bartDateFormat.format(new Date(Calendar.getInstance().getTimeInMillis())));
+			}
+			li.add(startOfRecord);
+		}else{
+			li = new ArrayList<>(list.size());
 		}
-		li.add(startOfRecord);
+		
 		list.stream()
 			.map(T::toString)
 			.forEach(e->li.add(e));
@@ -263,6 +283,16 @@ public class Recorder<T extends Recordable> {
 	}
 
 	
+	public boolean isNoHead() {
+		return noHead;
+	}
+
+
+	public void setNoHead(boolean noHead) {
+		this.noHead = noHead;
+	}
+
+
 	public List<T> getList(){
 		return list;
 	}

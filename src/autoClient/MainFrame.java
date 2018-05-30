@@ -18,11 +18,15 @@ import java.awt.Font;
 import java.awt.event.ActionListener;
 import java.awt.event.InputEvent;
 import java.awt.event.WindowEvent;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.ConnectException;
+import java.nio.ByteBuffer;
+import java.nio.file.Files;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.awt.event.ActionEvent;
@@ -177,9 +181,13 @@ public class MainFrame extends JFrame {
 			public void actionPerformed(ActionEvent arg0) {
 				
 				textAreaShow.append(getTimeNow()+"发送命令："+procedure.nextStep()+"\n");
-				
-				procedure.doNextStep(OutputFrameQueue.OutputQueue);
-				updateText();				
+				procedure = procedure.doNextStep(OutputFrameQueue.OutputQueue);
+				updateText();
+				if(procedure == null){
+					buttonStartProcedure.setEnabled(true);
+					ProcedureStart = false;
+					setSendButtonEnabled();
+				}
 			}
 		});
 		
@@ -270,9 +278,22 @@ public class MainFrame extends JFrame {
 		textAreaNextStep.setLineWrap(true);
 		textAreaNextStep.setWrapStyleWord(true);
 		textAreaNextStep.setEditable(false);
-		textAreaNextStep.setText("XXXaaaaaaddddddddddddccccccccccccdddddddddd");
+		textAreaNextStep.setText("(*^▽^*)");
 		
 		panel.add(textAreaNextStep);
+		
+		JButton btnTest = new JButton("test");
+		btnTest.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				ByteBuffer bbb = ByteBuffer.allocate(8);
+				bbb.putInt(1);
+				bbb.putInt(6);
+				bbb.flip();
+				OutputFrameQueue.OutputQueue.add(new DataFrame(DataFrame.PULSE_POSITION, bbb));			
+			}
+		});
+		btnTest.setBounds(14, 630, 113, 27);
+		panel.add(btnTest);
 		
 		
 		//窗口关闭前保存界面的参数设置
@@ -280,22 +301,47 @@ public class MainFrame extends JFrame {
 			@Override
 			public void windowClosing(WindowEvent e) {
 				sendBodyPane.saveObject();
+				if(procedure != null)
+					procedure.saveProcedure();
 			}
 		});
 		
+		InitializeProcedure();
+	}
+	
+	/**
+	 * 读取序列化后存储的参数类
+	 */
+	private void InitializeProcedure(){
+		procedure = Procedure.getProcedure();
+		if(procedure.nextStep()!=null){
+			buttonStartProcedure.setEnabled(false);
+			updateText();
+			
+			ProcedureStart = true;
+			setSendButtonEnabled();
+			
+			textAreaShow.append(getTimeNow()+"数据处理流程已开始\n");
+			textAreaShow.selectAll();
+		}
 	}
 	
 	public void appendTextAreaShow(String s){
 		textAreaShow.append(s);
+		textAreaShow.selectAll();
 	}
 	/**
 	 * 更新下一步step的信息
 	 */
 	public void updateText(){
-		if(procedure.nextStep() != null){
-			textAreaNextStep.setText(procedure.nextStep().toString());
-		}else{
-			textAreaNextStep.setText("等待指令传回");
+		try{
+			if(procedure.nextStep() != null){
+				textAreaNextStep.setText(procedure.nextStep().toString());
+			}else{
+				textAreaNextStep.setText("等待指令传回");
+			}
+		} catch (NullPointerException e){
+			textAreaNextStep.setText("流程已结束");
 		}
 		
 	}

@@ -7,7 +7,14 @@ import static java.util.Calendar.MONTH;
 import static java.util.Calendar.SECOND;
 import static java.util.Calendar.YEAR;
 
+import java.io.Externalizable;
 import java.io.File;
+import java.io.IOException;
+import java.io.ObjectInput;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutput;
+import java.io.ObjectOutputStream;
+import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.text.SimpleDateFormat;
@@ -20,7 +27,7 @@ import java.util.TimeZone;
  * @author Ttyy
  *
  */
-public class DataFrame {
+public class DataFrame implements Serializable {
 	
 	public static final byte[] FRAME_START = new byte[]{70,83,84,65};	//FSTA
 	public static final byte[] FRAME_END = new byte[]{69,78,68};		//END
@@ -40,8 +47,10 @@ public class DataFrame {
 	public static final int RECV_FILE = 0xF0;
 	
 	private int frame_length = 24;
-	private ByteBuffer byteBuffer;
-	private ByteBuffer frame_body;
+	private transient ByteBuffer byteBuffer;
+	private byte[] ByteBuffer_bytes;
+	private transient ByteBuffer frame_body;
+	private byte[] frame_body_bytes;
 	private Parameter parameter;
 	private int Mod;
 	private File transFile;
@@ -61,6 +70,17 @@ public class DataFrame {
 		packFrame();
 	}
 	
+	public DataFrame(File file, boolean sucess){
+		Mod = RECV_FILE;
+		frame_length += 260;//280=256+4
+		frame_body = ByteBuffer.allocate(frame_length);	
+		frame_body.clear();
+		frame_body.putInt(sucess?1:0);
+		frame_body.put(file.getName().getBytes());
+		frame_body.position(260);
+		frame_body.flip();
+		packFrame();
+	}
 	
 	/**
 	 * 以帧模式和帧体，创建数据帧；
@@ -115,7 +135,6 @@ public class DataFrame {
 	}
 	
 	public ByteBuffer getBuffer(){
-		byteBuffer.flip();
 		return byteBuffer;
 	}
 	
@@ -124,7 +143,7 @@ public class DataFrame {
 	}
 	
 	private void packFrame(){
-		byteBuffer = ByteBuffer.allocateDirect(frame_length);
+		byteBuffer = ByteBuffer.allocate(frame_length);
 		byte[] a = new byte[frame_length-1];
 		byteBuffer.put(FRAME_START);
 		byteBuffer.putInt(frame_length);
@@ -135,7 +154,8 @@ public class DataFrame {
 		byteBuffer.put(FRAME_END);
 		byteBuffer.rewind();
 		byteBuffer.get(a);
-		byteBuffer.put(Tools.XORCheck(a));			
+		byteBuffer.put(Tools.XORCheck(a));
+		byteBuffer.flip();
 	}
 	
 	public void setFrameBody(ByteBuffer bb){
@@ -175,12 +195,9 @@ public class DataFrame {
 		recvBody.time = c.build();
 		
 		if(mod == TRANSFER_FILE){
-			CharBuffer cb = buffer.asCharBuffer();
-			cb.limit(FileConfig.NAMECHARSIZE);
-			String name = cb.toString();
-			int index = name.indexOf(0);
-			recvBody.file_name = name.substring(0, index);
-			buffer.position(buffer.position()+FileConfig.NAMECHARSIZE*2);
+			byte[] bname = new byte[FileConfig.NAMECHARSIZE*2]; 
+			buffer.get(bname); 
+			recvBody.file_name = new String(bname).trim();
 			recvBody.file_length = buffer.getLong();
 			recvBody.MD5 = new byte[16];
 			buffer.get(recvBody.MD5);
@@ -203,11 +220,9 @@ public class DataFrame {
 				case KEY_RELAY:
 					break;				
 				case RECV_FILE:
-					CharBuffer cb = buffer.asCharBuffer();
-					cb.limit(FileConfig.NAMECHARSIZE);
-					String name = cb.toString();
-					int index = name.indexOf(0);
-					recvBody.file_name = name.substring(0, index);
+					byte[] bname = new byte[FileConfig.NAMECHARSIZE*2]; 
+					buffer.get(bname); 
+					recvBody.file_name = new String(bname).trim();
 					break;
 				default:
 					break;
@@ -261,6 +276,25 @@ public class DataFrame {
 		}		
 		return sBuilder.toString();
 	}
+
+
+	/**
+	 * 序列化相关，由于ByteBuffer类本身没有实现序列化，因此我们需要人为序列化
+	 * @param stream
+	 * @throws IOException
+	 */
+	private void writeObject(ObjectOutputStream stream) throws IOException {
+		ByteBuffer_bytes = byteBuffer.array();
+		frame_body_bytes = frame_body.array();
+		stream.defaultWriteObject();	
+	}
+	
+	private void readObject(ObjectInputStream stream) throws IOException, ClassNotFoundException {
+		stream.defaultReadObject();
+		byteBuffer = ByteBuffer.wrap(ByteBuffer_bytes);
+		frame_body = ByteBuffer.wrap(frame_body_bytes);
+	}
+	
 	
 }
 
@@ -285,7 +319,7 @@ class RecvBody{
 		StringBuilder s = new StringBuilder();
 		Date date = time.getTime();
 		SimpleDateFormat bartDateFormat =
-                new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ ");        
+                new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss ");        
 		s.append(bartDateFormat.format(date));
 		switch(mod){
 		case DataFrame.PULSE_POSITION:

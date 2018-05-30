@@ -7,6 +7,10 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -23,6 +27,16 @@ import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
 public class KeyRelay {
+	
+	private List<FlashAddrCell> stationThis;
+	private List<FlashAddrCell> stationOther;
+	private int numThis;
+	private int numOther;
+	private byte[] data;
+	private int cmd_cnt;
+	
+	public static final Path PATH_ADDRESS_TABLE_THIS = Paths.get(".").resolve("this_station_address_table.txt");
+	public static final Path PATH_ADDRESS_TABLE_OTHER = Paths.get(".").resolve("other_station_address_table.txt");
 	
 	/**
 	 * ¶ÁÈ¡Ä£°å
@@ -109,8 +123,16 @@ public class KeyRelay {
     }
     
     public static void main(String[] args) {
+        ByteBuffer b = ByteBuffer.allocate(96);
+        for (int i = 0; i < 96; i++) {
+            b.put((byte) i);
+        }
+        b.position(0);
+        Path path = Paths.get(".").resolve("datas");
+    	CallDLL.INSTANCE.BlocksCnt(3, b, path.toString());
     	KeyRelay kk = new KeyRelay();
-    	kk.saveXML();
+    	kk.readTemplate();
+    	System.out.println("ok");
 	}
     
 }

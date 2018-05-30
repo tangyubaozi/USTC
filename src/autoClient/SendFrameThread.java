@@ -34,7 +34,16 @@ public class SendFrameThread implements Runnable, OutputFrameQueue {
 					writeChannel.write(frame.getBuffer());
 					if(frame.getFile()!=null){
 						FileChannel fileInChannel = FileChannel.open(frame.getFile().toPath());
-						fileInChannel.transferTo(0, fileInChannel.size(), writeChannel);	
+						long sum = 0;
+						long filesize = fileInChannel.size();
+						System.out.println(filesize);
+						long tt = 0;
+						while(filesize > 0){
+							tt= fileInChannel.transferTo(sum, filesize, writeChannel);
+							sum += tt;
+							filesize -= tt;
+						}
+						System.out.println(sum);
 					}
 					TimeUnit.SECONDS.sleep(1);
 				}
@@ -48,4 +57,5 @@ public class SendFrameThread implements Runnable, OutputFrameQueue {
 	
 	}
 
+	
 }

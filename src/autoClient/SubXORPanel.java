@@ -108,7 +108,7 @@ public class SubXORPanel extends JPanel {
 				int returnVal = chooser.showOpenDialog(null);
 				if(returnVal == JFileChooser.APPROVE_OPTION) {
 					File file = chooser.getSelectedFile();
-					recorder = new Recorder<FlashAddrCell>(file.toPath(), FlashAddrCell.class);
+					recorder = new Recorder<FlashAddrCell>(file.toPath(), FlashAddrCell.class, Recorder.HEADLESS, Recorder.TEXT);
 					resetData();
 					textField.setEnabled(true);
 					textField.setText("0");

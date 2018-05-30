@@ -9,6 +9,10 @@ import java.nio.channels.ClosedChannelException;
 import java.nio.channels.FileChannel;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.SocketChannel;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
@@ -55,8 +59,19 @@ public class RecvFrameThread implements Runnable {
 						//帧数据异或校验出错，异常处理，需要补充处理方式
 					}
 					RecvBody recvBody = DataFrame.decodeFrame(buffer);
+					if(recvBody.mod == DataFrame.TRANSFER_FILE){
+						String sp = MyProperties.getMyProperties().getSettings().getProperty(MyProperties.PATH_DIR);
+						Path path = Paths.get(sp).resolve("recv").resolve(recvBody.file_name);
+//						Files.createFile(path);
+						buffer = readFromChannel(readChannel, (int)recvBody.file_length);
+						//重名文件会被覆盖
+						FileChannel fileChannel = FileChannel.open(path, StandardOpenOption.WRITE,StandardOpenOption.CREATE);
+						fileChannel.write(buffer);
+						OutputFrameQueue.OutputQueue.add(new DataFrame(path.toFile(), true));
+					}
 					mainFrame.appendTextAreaShow(recvBody.toString());
 					Procedure.getProcedure().recive(recvBody);
+					mainFrame.updateText();
 				}
 				
 				TimeUnit.SECONDS.sleep(1);
@@ -83,7 +98,7 @@ public class RecvFrameThread implements Runnable {
 	 */
 	public static ByteBuffer readFromChannel(ReadableByteChannel in,int length)
 			throws InterruptedException, ServerClosedChannelException, IOException{
-		ByteBuffer buffer = ByteBuffer.allocateDirect(length);
+		ByteBuffer buffer = ByteBuffer.allocate(length);
 		int index = 0;
 		int re = 0;
 		while(index < length){
